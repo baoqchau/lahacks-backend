@@ -1,9 +1,12 @@
 from flask import Flask, jsonify, abort, make_response, request
+import pyrebase
+import json
+
 app = Flask(__name__)
 
 predictions = [
     {
-        'id':1,
+        'id':'1',
         'sports': u'Soccer',
         'votes':{
             'Canada': 0,
@@ -20,7 +23,7 @@ predictions = [
             'India':0,
             'China':0
         },
-        'id':2
+        'id':'2'
     },
     {
         'sports': u'Skiing',
@@ -30,13 +33,12 @@ predictions = [
             'German':0,
             'India':0
         },
-        'id':3
+        'id':'3'
     }
 ]
 
 #firebase config
-config = [
-    { 
+config = { 
         'apiKey': 'AIzaSyAVYaVejXdtzx_jOuXT_ZY_oK6_w408KQ8',
         'authDomain': 'goalcoach-fe998.firebaseapp.com',
         'databaseURL': 'https://goalcoach-fe998.firebaseio.com',
@@ -44,15 +46,36 @@ config = [
         'storageBucket': 'goalcoach-fe998.appspot.com',
         'messagingSenderId': '945732490440'
     }
-]
+
+
+#firebase setup
+firebase = pyrebase.initialize_app(config)
+auth = firebase.auth()
+#authenticate a user
+user = auth.sign_in_with_email_and_password("baoqchau@gmail.com", "hocgioi1")
+user = auth.refresh(user['refreshToken'])
+
+db = firebase.database()
+db.child("predictions").set(predictions, user['idToken'])
+db.child("predictions").child("0").child("votes").update({"Canada":10}, user['idToken'])
 
 @app.route('/fantasy/api/v1.0/predictions', methods=['GET'])
-def get_tasks():
-    return jsonify({'predictions': predictions})
+def get_predictions():
+    results = db.child("predictions").get(user['idToken'])
+    data =[] 
+    for prediction in results.each():
+        data.append(prediction.val())
+    return jsonify({'predictions': data})
 
 @app.route('/fantasy/api/v1.0/predictions/<int:prediction_id>', methods=['GET'])
 def get_prediction(prediction_id):
-    prediction = [prediction for prediction in predictions if prediction['id'] == prediction_id]
+    number = str(prediction_id)
+    data = get_predictions()
+    prediction = []
+    for ele in data:
+        if ele["id"] == number:
+            prediction.append(ele)
+    print(prediction)
     if len(prediction) == 0:
         abort(404)
     return jsonify({'prediction': prediction[0]})
@@ -89,4 +112,7 @@ def update_prediction(prediction_id):
 
 @app.route('/')
 def hello_world():
-        return 'Hello, World!'
+    db = firebase.database()
+    db.child("predictions").push(predictions)
+    print('database deployed')
+    return 'Hello, World!'
