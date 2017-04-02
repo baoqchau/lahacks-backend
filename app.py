@@ -1,39 +1,151 @@
 from flask import Flask, jsonify, abort, make_response, request
 import pyrebase
 import json
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 predictions = [
     {
         'id':'1',
         'sports': u'Soccer',
         'votes':{
-            'Canada': 0,
-            'Mexico': 0,
-            'France': 0,
-            'China': 0
+	   'USA': 500,
+	   'Russia': 1000,
+           'China': 200,
+	   'India': 150
+        },
+        'country': {
+            'name': 'USA',
+            'number': 50
         }
     },
     {
         'sports': u'Swimming',
         'votes':{
-            'Canada':0,
-            'USA':0,
-            'India':0,
-            'China':0
+            'USA':1200,
+            'Russia':420,
+            'India':500,
+            'China':250
         },
-        'id':'2'
+        'id':'2',
+        'country': {
+            'name': 'China',
+            'number': 40
+        }
     },
     {
         'sports': u'Skiing',
         'votes':{
-            'Canada':0,
-            'USA':0,
-            'German':0,
-            'India':0
+            'Russia':430,
+            'USA':240,
+            'German':450,
+            'China': 460
         },
-        'id':'3'
+        'id':'3',
+        'country': {
+            'name': 'Russia',
+            'number': 60 
+        }
+    },
+    {
+        'sports': u'Basketball',
+        'votes': {
+            'China': 430,
+            'USA': 340,
+            'Russia': 550,
+            'India': 660
+        },
+        'id': '4',
+        'country': {
+            'name': 'Canada',
+            'number': 50
+        }
+    },
+    {
+        'sports': u'Ping-pong',
+        'votes': {
+            'China': 750,
+            'India': 840,
+            'Russia': 660,
+            'USA': 1070
+        },
+        'id': '5',
+        'country': {
+            'name': 'France',
+            'number': 80
+        }
+    },
+    {
+        'sports': u'Bowling',
+        'votes': {
+            'India': 850,
+            'USA': 460,
+            'China': 540,
+            'Russia': 1060
+        },
+        'id': '6',
+        'country':{
+            'name': 'German',
+            'number': 40
+        }
+    },
+    {
+        'sports': u'Volleyball',
+        'votes': {
+            'India': 760,
+            'USA': 850,
+            'Russia': 1040,
+            'China': 970
+        },
+        'id': '7',
+        'country': {
+            'name': 'Mexico',
+            'number': 70
+        }
+    },
+    {
+        'sports': u'Badminton',
+        'votes': {
+            'China': 660,
+            'USA': 750,
+            'Russia': 240,
+            'India': 970
+        },
+        'id': '8',
+        'country': {
+            'name': 'Spain',
+            'number': 70
+        }
+    },
+    {
+        'sports': u'Badminton',
+        'votes': {
+            'Russia': 1060,
+            'USA': 950,
+            'China': 840,
+            'India': 870
+        },
+        'id': '9',
+        'country': {
+            'name': 'India',
+            'number': 70
+        }
+    },
+    {
+        'sports': u'Badminton',
+        'votes': {
+            'USA': 980,
+            'India': 1050,
+            'Russia': 440,
+            'China': 870
+        },
+        'id': '10',
+        'country': {
+            'name': 'Japan',
+            'number': 70
+        }
     }
 ]
 
@@ -56,10 +168,10 @@ user = auth.sign_in_with_email_and_password("baoqchau@gmail.com", "hocgioi1")
 user = auth.refresh(user['refreshToken'])
 
 db = firebase.database()
-db.child("predictions").set(predictions, user['idToken'])
-db.child("predictions").child("0").child("votes").update({"Canada":10}, user['idToken'])
+#db.child("predictions").set(predictions, user['idToken'])
 
-@app.route('/fantasy/api/v1.0/predictions', methods=['GET'])
+
+@app.route('/fantasy/api/v1.0/predictions', methods=['GET', 'OPTIONS'])
 def get_predictions():
     results = db.child("predictions").get(user['idToken'])
     data =[] 
@@ -98,21 +210,19 @@ def create_task():
 
 @app.route('/fantasy/api/v1.0/predictions/<int:prediction_id>', methods=['PUT'])
 def update_prediction(prediction_id):
+    idNeed = str(prediction_id-1)
     prediction = [prediction for prediction in predictions if prediction['id'] == prediction_id]
-    if len(prediction) == 0:
-        abort(404)
-    if not request.json:
-        abort(400)
+ #   if len(prediction) == 0:
+ #       abort(404)
+ #   if not request.json:
+ #       abort(400)
     country = request.json.get("vote")
-    for choice in prediction[0]['votes']:
-        if choice == country:
-            prediction[0]['votes'][choice] += 1
-    print(country)
-    return jsonify({'prediction': prediction[0]})
+    votes =db.child("predictions").child(idNeed).child("votes").child(country).get(user['idToken']).val()
+    votes = votes + 10
+    db.child("predictions").child(idNeed).child("votes").update({country:votes},user['idToken'])
+    print('update successful')
+    return 'update successful' 
 
 @app.route('/')
 def hello_world():
-    db = firebase.database()
-    db.child("predictions").push(predictions)
-    print('database deployed')
     return 'Hello, World!'
